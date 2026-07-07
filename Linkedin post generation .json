@@ -1,0 +1,782 @@
+{
+  "name": "Linkedin post generation",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Create a professional LinkedIn post about: {{ $json.Topic }}. Make it engaging, informative, and include relevant hashtags. Keep it under 1300 characters.\n\nOutput ONLY the final post text itself, starting directly with the post content. Do not include a title, headers, explanations, rationale, character counts, tables, or any commentary about the post. Do not wrap it in quotes.",
+        "options": {
+          "systemMessage": "You are a professional LinkedIn content creator. Create engaging, professional posts that drive engagement. You must respond with ONLY the raw post text and hashtags — never include titles, section headers, explanations, rationale, character counts, tables, or any meta-commentary about what you changed or why."
+        }
+      },
+      "id": "325a18e8-f4ef-4590-b8ae-5677384d57f3",
+      "name": "Generate LinkedIn Post",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        464,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "maxTokens": 1000,
+          "temperature": 0.7
+        }
+      },
+      "id": "a81891df-d718-4bda-b1bf-8789aaef626f",
+      "name": "NVIDIA Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatNvidia",
+      "typeVersion": 1,
+      "position": [
+        544,
+        800
+      ],
+      "credentials": {
+        "nvidiaApi": {
+          "id": "0caUyLvcA4G8ev1H",
+          "name": "NVIDIA Nemotron account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "linkedinPost",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "chatId",
+              "value": "={{ $('Google Sheets Trigger').item.json.message.chat.id }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d723c786-1beb-4a25-aa0c-f589d73a4efd",
+      "name": "Set Content",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        816,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Rewrite this LinkedIn post to sound more natural and human. Keep the key points but make it conversational and authentic:\n\n{{ $json.linkedinPost }}\n\nOutput ONLY the rewritten post text itself, starting directly with the post content. Do not include a title, headers, explanations, rationale, character counts, tables, or any commentary about the changes you made. Do not wrap it in quotes.",
+        "options": {
+          "systemMessage": "You are an expert at making AI-generated content sound natural and human. Maintain professionalism while adding warmth and authenticity. You must respond with ONLY the rewritten post text — never include titles, section headers, explanations, rationale, character counts, tables, or any meta-commentary about what you changed or why."
+        }
+      },
+      "id": "a93b0e0f-30b2-4072-a28a-b331589cdc40",
+      "name": "Humanize Content",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1040,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "maxTokens": 1000,
+          "temperature": 0.8
+        }
+      },
+      "id": "818a2dd3-9059-477c-9b3c-2e1d4384f4bf",
+      "name": "NVIDIA Humanize Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatNvidia",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        800
+      ],
+      "credentials": {
+        "nvidiaApi": {
+          "id": "0caUyLvcA4G8ev1H",
+          "name": "NVIDIA Nemotron account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  let cleanText = item.json.output || \"\";\n  cleanText = cleanText.trim();\n  cleanText = cleanText.replace(/^[\"']+|[\"']+$/g, \"\");\n  \n  output.push({\n    json: {\n      finalPost: cleanText\n    }\n  });\n}\n\nreturn output;"
+      },
+      "id": "3ff9d39c-752a-41da-9359-9573c1f75600",
+      "name": "Clean Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "04178a63-5f0a-4c3a-bc59-b30d0d887721",
+      "name": "Check Approval",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1840,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "postText",
+              "type": "string",
+              "value": "={{ $('Clean Output').item.json.finalPost }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dfb87b38-7389-467e-b11f-2ca93c2d7c7f",
+      "name": "Get LinkedIn Profile ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2064,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "person": "h17Jjq8D6N",
+        "text": "={{ $json.postText }}",
+        "additionalFields": {}
+      },
+      "id": "cfd875b8-2842-4f81-86ba-a0ef58d8fc60",
+      "name": "Publish to LinkedIn",
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [
+        2352,
+        304
+      ],
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "bcN6F8fBJv6tU89u",
+          "name": "LinkedIn account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Revise this LinkedIn post based on the following feedback:\n\nOriginal Post:\n{{ $(\"Clean Output\").item.json.finalPost }}\n\nFeedback:\n{{ $json.data.text }}\n\nProvide the revised post only, no explanations.",
+        "options": {
+          "systemMessage": "You are a professional LinkedIn content editor. Revise posts based on user feedback while maintaining quality and professionalism."
+        }
+      },
+      "id": "62e8e3df-bb3d-46b9-9451-a21552a0b306",
+      "name": "Revise Post using AI",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2288,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "maxTokens": 1000,
+          "temperature": 0.7
+        }
+      },
+      "id": "3854606f-4be1-40d2-be4b-efe46f1d702b",
+      "name": "NVIDIA Revision Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatNvidia",
+      "typeVersion": 1,
+      "position": [
+        2368,
+        832
+      ],
+      "credentials": {
+        "nvidiaApi": {
+          "id": "0caUyLvcA4G8ev1H",
+          "name": "NVIDIA Nemotron account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  let cleanText = item.json.output || \"\";\n  cleanText = cleanText.trim();\n  cleanText = cleanText.replace(/^[\"']+|[\"']+$/g, \"\");\n  \n  output.push({\n    json: {\n      finalPost: cleanText\n    }\n  });\n}\n\nreturn output;"
+      },
+      "id": "f3c629d9-8907-4f95-ab3a-ab5e7ceb0785",
+      "name": "Clean Revision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "849e57c8-d520-4cd8-b0a8-e816ad934cb2",
+      "name": "Check Revision Approval",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3088,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "postText",
+              "value": "={{ $json.finalPost }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a7832a22-203d-4a4e-8113-0e4339d9c61b",
+      "name": "Prepare for LinkedIn",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3312,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "person": "={{ $json.name }}",
+        "text": "={{ $json.postText }}",
+        "shareMediaCategory": "IMAGE",
+        "additionalFields": {}
+      },
+      "id": "35a43ff2-45a8-4838-8fe3-4aaedfafa789",
+      "name": "Publish Revised to LinkedIn",
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [
+        3536,
+        720
+      ],
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "OAQfXAln5jOopYVr",
+          "name": "LinkedIn account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "samanjamil022@gmail.com",
+        "subject": "LinkedIn Post Draft - Review Required",
+        "message": "=📝 LinkedIn Post Draft:\n\n{{ $json.finalPost }}\n\n---\nPlease review and respond:",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "✅ Approve & Publish",
+            "disapproveLabel": "✏️ Request Revision"
+          }
+        },
+        "options": {
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 60,
+              "resumeUnit": "minutes"
+            }
+          },
+          "appendAttribution": false
+        }
+      },
+      "id": "5719359f-69f4-4476-97d5-6d145c456a6e",
+      "name": "Send Draft to Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1616,
+        576
+      ],
+      "webhookId": "cc0a9d56-3241-42eb-81ea-df514f2d316c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "yzOH8HLwpaiwt0uR",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "samanjamil022@gmail.com",
+        "subject": "LinkedIn Post Published Successfully",
+        "emailType": "text",
+        "message": "=✅ Success! Your LinkedIn post has been published.\n\nPost URN: {{ $json.urn }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "ce92952d-fa7c-44b8-a968-0748ce10271f",
+      "name": "Notify Success",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2640,
+        304
+      ],
+      "webhookId": "5f295a7c-aa3b-49f6-a938-e93420e8bef4",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ZBV2lnWOJKaGj7gg",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "samanjamil022@gmail.com",
+        "subject": "LinkedIn Post - Revision Requested",
+        "message": "✏️ Please provide your feedback for the revision:",
+        "responseType": "freeText",
+        "options": {
+          "messageButtonLabel": "Provide Feedback",
+          "responseFormTitle": "Revision Feedback",
+          "responseFormDescription": "Tell us what changes you would like to see in the post",
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 30,
+              "resumeUnit": "minutes"
+            }
+          },
+          "appendAttribution": false
+        }
+      },
+      "id": "7cb6d302-b8c3-4eb9-a78e-26ae8df9238e",
+      "name": "Take Gmail Feedback",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2064,
+        720
+      ],
+      "webhookId": "beeb62b1-55e2-4de5-a9d7-e59cac58148e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ZBV2lnWOJKaGj7gg",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "samanjamil022@gmail.com",
+        "subject": "LinkedIn Post - Revised Draft",
+        "message": "=📝 Revised LinkedIn Post:\n\n{{ $json.finalPost }}\n\n---\nPlease review and respond:",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "✅ Approve & Publish",
+            "disapproveLabel": "✏️ Request Another Revision"
+          }
+        },
+        "options": {
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 60,
+              "resumeUnit": "minutes"
+            }
+          },
+          "appendAttribution": false
+        }
+      },
+      "id": "3bc80dfc-d8e8-4dbc-9b6b-7b356f0e4bf5",
+      "name": "Send Back for Approval",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2864,
+        608
+      ],
+      "webhookId": "c93e49a0-8d19-42b4-b9b5-6e04b8d463fa",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ZBV2lnWOJKaGj7gg",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "samanjamil022@gmail.com",
+        "subject": "LinkedIn Post Published Successfully",
+        "emailType": "text",
+        "message": "=✅ Success! Your revised LinkedIn post has been published.\n\nPost URN: {{ $json.urn }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "8b029ddd-cd9f-4031-8b50-1eed98865e20",
+      "name": "Notify Revised Success",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        3760,
+        720
+      ],
+      "webhookId": "4b79b11c-a9bc-46e2-8de1-750ba0900ed9",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ZBV2lnWOJKaGj7gg",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1pwFYrt6HcPLvmfCWjWzwgBabFIfLeFqcDUhCWelN9Fo",
+          "mode": "list",
+          "cachedResultName": "Linkedin Post Generation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pwFYrt6HcPLvmfCWjWzwgBabFIfLeFqcDUhCWelN9Fo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pwFYrt6HcPLvmfCWjWzwgBabFIfLeFqcDUhCWelN9Fo/edit#gid=0"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "id": "7b908b3c-4776-469a-9cff-fec3bae1aa79",
+      "name": "Google Sheets Trigger",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        576
+      ],
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "u9jUuK8fyyFJYV6l",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Generate LinkedIn Post": {
+      "main": [
+        [
+          {
+            "node": "Set Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NVIDIA Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate LinkedIn Post",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Content": {
+      "main": [
+        [
+          {
+            "node": "Humanize Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Humanize Content": {
+      "main": [
+        [
+          {
+            "node": "Clean Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NVIDIA Humanize Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Humanize Content",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Output": {
+      "main": [
+        [
+          {
+            "node": "Send Draft to Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Approval": {
+      "main": [
+        [
+          {
+            "node": "Get LinkedIn Profile ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Take Gmail Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get LinkedIn Profile ID": {
+      "main": [
+        [
+          {
+            "node": "Publish to LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish to LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Notify Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Revise Post using AI": {
+      "main": [
+        [
+          {
+            "node": "Clean Revision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NVIDIA Revision Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Revise Post using AI",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Revision": {
+      "main": [
+        [
+          {
+            "node": "Send Back for Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Revision Approval": {
+      "main": [
+        [
+          {
+            "node": "Prepare for LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Take Gmail Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare for LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Publish Revised to LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish Revised to LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Notify Revised Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Draft to Gmail": {
+      "main": [
+        [
+          {
+            "node": "Check Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Take Gmail Feedback": {
+      "main": [
+        [
+          {
+            "node": "Revise Post using AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Back for Approval": {
+      "main": [
+        [
+          {
+            "node": "Check Revision Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "Generate LinkedIn Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "63413a33-67b9-4eb1-bb70-dd1f745d4e74",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "89b7e1a5014e6dc2f57b9fb9bdc3c51b224ba8099f71888d00a84a41e96e3a14"
+  },
+  "nodeGroups": [],
+  "id": "u0ZA0pfmNx3Gzooy",
+  "tags": []
+}
